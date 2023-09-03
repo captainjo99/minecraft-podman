@@ -1,0 +1,79 @@
+#!/bin/bash
+
+SERVER_JAR=server.jar
+SERVER_CONFIG=server.properties
+WORK_DIR=/opt/minecraft/
+DATA_DIR=/var/lib/mc-data/
+CONFIG_STATUS=false
+
+cd $WORK_DIR
+
+function print_warning () {
+    echo "WARNING: $1"
+}
+
+function print_error () {
+    echo "ERROR: $1"
+}
+
+if [[ -f "$WORK_DIR$SERVER_JAR" ]]; then
+    echo "Server executable found at $WORK_DIR$SERVER_JAR"
+else
+    print_warning "Could not find server executable!"
+    echo "Copying from $DATA_DIR..."
+    cp -p $DATA_DIR$SERVER_JAR $WORK_DIR
+    if [ $? -ne 0 ]; then
+        print_error "Could not copy $SERVER_JAR to $WORK_DIR"
+	exit 1
+    else
+	echo "Copied successfully!"
+    fi
+fi
+
+if [[ -f "$WORK_DIR$SERVER_CONFIG" ]]; then
+    echo "Found server config file $WORK_DIR$SERVER_CONFIG"
+    echo ""
+    CONFIG_STATUS=true
+else
+    print_warning "Server config file could not be found!"
+    print_warning "Config file will be generated on server startup!"
+    CONFIG_STATUS=false
+fi
+
+if [[ "$CONFIG_STATUS" != "true" ]]; then
+    echo "Generating eula.txt and server.properties"
+    java -jar $SERVER_JAR --nogui --initSettings
+
+    echo "Setting eula.txt to true!"
+    echo "eula=true" > eula.txt
+
+    echo "Configuring server MOTD!"
+    sed -i "s/^motd=.*/motd=$MC_MOTD/g" server.properties
+
+    echo "Configuring server port!"
+    sed -i "s/^server-port=.*/server-port=$MC_PORT/g" server.properties
+    sed -i "s/^query.port=.*/query.port=$MC_PORT/g" server.properties
+
+    if [[ "$MC_RANDOM_SEED" == "0"  ]]; then
+	echo "Random seed is false!"
+	echo "Using user provided seed..."
+        if [ -z "$MC_SEED" ]; then
+            print_error "Seed environment variable not set!"
+	    echo "Deleting server.properties..."
+	    rm -f server.properties
+            exit 1
+        fi
+        echo "Configuring server seed to $MC_SEED"
+        sed -i "s/^level-seed=.*/level-seed=$MC_SEED/g" server.properties
+    else
+	print_warning "Server seed not configured!"
+	print_warning "Server will generate random seed!"
+    fi
+fi
+
+echo "Starting Minecraft server..."
+java -jar server.jar --nogui
+
+sleep 2
+echo "Exiting..."
+exit 0
