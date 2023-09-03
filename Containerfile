@@ -15,7 +15,7 @@ RUN dnf update -y && \
 
 ENV MC_PORT=25565
 ENV MC_MOTD="Minecraft on AlmaLinux"
-ENV MC_RANDOM_SEED=true
+ENV MC_RANDOM_SEED="1"
 
 VOLUME ["/opt/minecraft"]
 
